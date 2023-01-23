@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Об авторе проекта{% endblock %}
+{% block content %}
+  <div class="row">
+    <div class="col-12">
+      <h1>Автор : Сергей Смирнов</h1>
+    </div>
+  </div>
+  </div>
+  <div class="container">
+  <div class="row">
+    <div class="col-12 col-sm-12 col-md-8 col-lg-8 col-xl-8">
+      <p>В поисках внеземной жизни</p>
+    </div>
+    <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+      <img src="{% static 'img/my.jpg' %}" width="140" height="100" class="d-inline-block align-top" alt=''>
+    </div>
+  </div>
+  </div>
+  <br>
+  <div class="container">
+  <div class="row">
+    <div class="col-12">
+      <h2>Контактная информация</h2>
+    </div>
+  </div>
+  </div>
+  <div class="container">
+  <div class="row">
+    <div class="col-12">
+      <p>Телефон: +7 (917) 662-98-91</p>
+      <p>Почта: <a href="mailto: sm-serega85@yandex.ru">sm-serega85@yandex.ru</a></p>
+    </div>
+  </div>
+{% endblock %}
