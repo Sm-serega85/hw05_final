@@ -28,9 +28,11 @@ def group_posts(request, slug):
 def profile(request, username):
     author = get_object_or_404(User, username=username)
     author_posts = author.posts.all()
+    following = author.following.exists()
     context = {
         'author': author,
-        'page_obj': get_page_paginator(request, author_posts)
+        'page_obj': get_page_paginator(request, author_posts),
+        'following': following,
     }
     return render(request, 'posts/profile.html', context)
 
@@ -39,11 +41,8 @@ def post_detail(request, post_id):
     form = CommentForm(request.POST or None)
     post = get_object_or_404(Post, pk=post_id)
     comments = Comment.objects.filter(post=post)
-    post_count = post.author.posts.count()
-
     context = {
         'post': post,
-        'post_count': post_count,
         'form': form,
         'comments': comments,
     }
@@ -63,7 +62,6 @@ def post_create(request):
 
 @login_required
 def post_edit(request, post_id):
-    is_edit = True
     post = get_object_or_404(Post, pk=post_id)
     if request.user != post.author:
         return redirect('posts:post_detail', post_id=post.id)
@@ -76,7 +74,7 @@ def post_edit(request, post_id):
     context = {
         'form': form,
         'post': post,
-        'is_edit': is_edit
+        'is_edit': True
     }
     return render(request, 'posts/create_post.html', context)
 
@@ -99,12 +97,8 @@ def follow_index(request):
         "author_id", flat=True
     )
     posts = Post.objects.filter(author_id__in=follower)
-    paginator = Paginator(posts, 10)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
     context = {
-        "page_obj": page_obj,
-        "title": "Избранные посты",
+        "page_obj": get_page_paginator(request, posts),
     }
     return render(request, "posts/follow.html", context)
 

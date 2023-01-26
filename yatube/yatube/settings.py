@@ -107,7 +107,7 @@ LOGIN_URL = 'users:login'
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 EMAIL_FILE_PATH = os.path.join(BASE_DIR, 'sent_emails')
 
-NUNBER_POSTS = 10
+NUMBER_POSTS = 10
 
 MEDIA_URL = '/media/'
 

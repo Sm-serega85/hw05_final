@@ -12,7 +12,7 @@ class PostForm(forms.ModelForm):
                   'group': 'Группа'}
         help_texts = {'text': 'Текст нового поста',
                       'group': 'Группа с текущим постом'}
-        fields = ('group', 'text', 'image')
+        fields = ('text', 'group', 'image')
 
 
 class CommentForm(forms.ModelForm):

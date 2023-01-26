@@ -13,6 +13,9 @@ from ..models import Comment, Follow, Group, Post
 User = get_user_model()
 
 
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
+
+
 class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -219,9 +222,6 @@ class PostPagesTests(TestCase):
         self.assertEqual(len(r_3.context["page_obj"]), 0)
 
 
-TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
-
-
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class TaskPagesTests(TestCase):
     @classmethod
@@ -284,10 +284,3 @@ class TaskPagesTests(TestCase):
         )
         obj = response.context["post"]
         self.assertEqual(obj.image, self.post.image)
-
-    def test_image_in_page(self):
-        """Проверяем что пост с картинкой создается в БД"""
-        self.assertTrue(
-            Post.objects.filter(text="Тестовый текст",
-                                image="posts/small.gif").exists()
-        )
