@@ -4,7 +4,7 @@
 {% block content %}
   {% include 'posts/includes/switcher.html' %}
   {% load cache %}
-  {% cache 20 follow_page %}
+  {% cache 20 follow_page page_obj %}
   <div class="container py-5">
       <h1>{{ title }}</h1>
     {# возможно придется убрать тег <h1>  #}

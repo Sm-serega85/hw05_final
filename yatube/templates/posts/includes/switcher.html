@@ -3,7 +3,8 @@
     <ul class="nav nav-tabs">
       <li class="nav-item">
         <a 
-          class="nav-link {% if index %}active{% endif %}"
+          class="nav-link {% if view_name_1 == 'posts:index' %}active{% endif %}"
+          class="nav-link {% if view_name_2 == 'posts:follow_index' %}active{% endif %}"
           href="{% url 'posts:index' %}"
         >
           Все авторы
