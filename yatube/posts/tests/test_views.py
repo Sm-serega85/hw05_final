@@ -4,6 +4,7 @@ import tempfile
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
@@ -21,6 +22,7 @@ class PostPagesTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create(username="StasBasov")
+        cls.user_1 = User.objects.create_user(username='noname')
         cls.group = Group.objects.create(
             title="Тестовая группа",
             slug="test-slug",
@@ -35,6 +37,16 @@ class PostPagesTests(TestCase):
             author=cls.user,
             text="Тестовый пост",
             group=cls.group
+        )
+        cls.post_1 = Post.objects.create(
+            author=cls.user_1,
+            text='Тестовый пост другого автора',
+            group=cls.group2
+        )
+        cls.comment = Comment.objects.create(
+            post=cls.post,
+            author=cls.user_1,
+            text='Тестовый комментарий'
         )
 
     def setUp(self):
@@ -135,13 +147,11 @@ class PostPagesTests(TestCase):
                 self.assertIsInstance(form_field, expected)
 
     def test_check_group_in_pages(self):
-        """Проверяем создание поста на страницах с выбранной группой"""
+        """Проверяем создание поста на странице с выбранной группой"""
         expected = list(Post.objects.filter(group=self.group)[:10])
-
-        for page in self.pages:
-            response = self.authorized_client.get(page)
-            pageposts = list(response.context["page_obj"])
-            self.assertEqual(expected, pageposts)
+        page = reverse("posts:group_list", kwargs={"slug": self.group.slug})
+        response = self.authorized_client.get(page)
+        self.assertEqual(expected, list(response.context["page_obj"]))
 
     def test_check_group_not_in_mistake_group_list_page(self):
         """Проверяем чтобы созданный пост с группой не попал в чужую группу."""
@@ -159,11 +169,12 @@ class PostPagesTests(TestCase):
                 group=self.group
             ) for i in range(1, 13)
         ]
+        Post.objects.all().delete()
         Post.objects.bulk_create(new_posts)
 
         pages_posts = [
             (1, 10),
-            (2, 3)
+            (2, 2)
         ]
 
         for page in self.pages:
@@ -193,14 +204,15 @@ class PostPagesTests(TestCase):
     def test_check_cache(self):
         """Проверка кеша."""
         response = self.guest_client.get(reverse("posts:index"))
-        r_1 = response.content
         Post.objects.get(id=self.post.id).delete()
         response2 = self.guest_client.get(reverse("posts:index"))
-        r_2 = response2.content
-        self.assertEqual(r_1, r_2)
+        self.assertEqual(response.content, response2.content)
+        cache.clear()
+        response3 = self.guest_client.get(reverse('posts:index'))
+        self.assertNotEqual(response.content, response3.content)
 
     def test_follow_page(self):
-        # Проверяем, что страница подписок пуста
+        """ Проверяем, что страница подписок пуста """
         response = self.authorized_client.get(reverse("posts:follow_index"))
         self.assertEqual(len(response.context["page_obj"]), 0)
 
@@ -208,16 +220,16 @@ class PostPagesTests(TestCase):
         """Проверка подписки на автора поста"""
         self.authorized_client.get(reverse('posts:follow_index'))
         sub_1 = Follow.objects.filter(
-            author=self.post_a.author, user=self.user
+            author=self.post_1.author, user=self.user
         )
         self.assertFalse(sub_1)
         self.authorized_client.post(
             reverse(
                 'posts:profile_follow',
-                kwargs={'username': self.user_another.username})
+                kwargs={'username': self.user_1.username})
         )
         sub_2 = Follow.objects.filter(
-            author=self.post_a.author, user=self.user
+            author=self.post_1.author, user=self.user
         )
         self.assertTrue(sub_2)
 
@@ -226,15 +238,15 @@ class PostPagesTests(TestCase):
         self.authorized_client.post(
             reverse(
                 'posts:profile_follow',
-                kwargs={'username': self.user_another.username})
+                kwargs={'username': self.user_1.username})
         )
         sub_1 = Follow.objects.filter(
-            author=self.post_a.author, user=self.user
+            author=self.post_1.author, user=self.user
         )
         self.assertTrue(sub_1)
         sub_1.delete()
         sub_2 = Follow.objects.filter(
-            author=self.post_a.author, user=self.user
+            author=self.post_1.author, user=self.user
         )
         self.assertFalse(sub_2)
 
@@ -243,15 +255,15 @@ class PostPagesTests(TestCase):
         self.authorized_client.post(
             reverse(
                 'posts:profile_follow',
-                kwargs={'username': self.user_another.username})
+                kwargs={'username': self.user_1.username})
         )
-        post = Follow.objects.filter(author=self.post_a.author, user=self.user)
+        post = Follow.objects.filter(author=self.post_1.author, user=self.user)
         self.assertTrue(post)
 
     def test_subscription_no_added_to_profile_follow_user(self):
         """Пост НЕ появляется на странице подписок у НЕ подписчика"""
         sub_1 = Follow.objects.filter(
-            author=self.post_a.author, user=self.user
+            author=self.post_1.author, user=self.user
         )
         self.assertFalse(sub_1)
         self.authorized_client.get(
@@ -259,7 +271,7 @@ class PostPagesTests(TestCase):
                     kwargs={'username': self.user.username})
         )
         sub_2 = Follow.objects.filter(
-            author=self.post_a.author, user=self.user
+            author=self.post_1.author, user=self.user
         )
         self.assertFalse(sub_2)
 
