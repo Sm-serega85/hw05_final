@@ -32,7 +32,9 @@ def profile(request, username):
     context = {
         'author': author,
         'page_obj': get_page_paginator(request, author_posts),
-        'following': author.following.exists(),
+        'following': request.user.is_authenticated
+        and Follow.objects.filter(author=author,
+                                  user=request.user).exists()
     }
     return render(request, 'posts/profile.html', context)
 
