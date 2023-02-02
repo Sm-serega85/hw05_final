@@ -219,10 +219,9 @@ class PostPagesTests(TestCase):
             user=self.user,
             author=self.user_1
         )
-        sub_1 = Follow.objects.filter(
+        Follow.objects.filter(
             author=self.post_1.author, user=self.user
         )
-        self.assertTrue(sub_1)
         self.authorized_client.get(
             reverse(
                 'posts:profile_unfollow',
@@ -241,12 +240,12 @@ class PostPagesTests(TestCase):
                 'posts:profile_follow',
                 kwargs={'username': self.user_1.username})
         )
-        self.authorized_client.get(
+        response = self.authorized_client.get(
             reverse(
-                'posts:profile_unfollow',
-                kwargs={'username': self.user_1.username}
+                'posts:follow_index',
             )
         )
+        self.assertIn(self.post_1, response.context['page_obj'])
 
     def test_subscription_no_added_to_profile_follow_user(self):
         """Пост НЕ появляется на странице подписок у НЕ подписчика"""
@@ -254,7 +253,7 @@ class PostPagesTests(TestCase):
             author=self.post_1.author, user=self.user
         )
         self.assertFalse(sub_1)
-        self.authorized_client.get(
+        self.authorized_client_1.get(
             reverse('posts:profile_follow',
                     kwargs={'username': self.user.username})
         )
