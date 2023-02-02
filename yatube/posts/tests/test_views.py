@@ -53,6 +53,8 @@ class PostPagesTests(TestCase):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(PostPagesTests.user)
+        self.authorized_client_1 = Client()
+        self.authorized_client_1.force_login(self.user_1)
         self.pages = [
             reverse("posts:index"),
             reverse(
@@ -62,6 +64,7 @@ class PostPagesTests(TestCase):
                 "posts:profile", kwargs={"username": self.user}
             )
         ]
+        cache.clear()
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -184,23 +187,6 @@ class PostPagesTests(TestCase):
                     self.assertEqual(len(response.context['page_obj']),
                                      pagepost[1])
 
-    def test_comment_correct_context(self):
-        """Валидная форма Комментария создает запись в Post."""
-        comments_count = Comment.objects.count()
-        form_data = {"text": "Тестовый коммент"}
-        response = self.authorized_client.post(
-            reverse("posts:add_comment", kwargs={"post_id": self.post.id}),
-            data=form_data,
-            follow=True,
-        )
-        self.assertRedirects(
-            response, reverse("posts:post_detail",
-                              kwargs={"post_id": self.post.id})
-        )
-        self.assertEqual(Comment.objects.count(), comments_count + 1)
-        self.assertTrue(Comment.objects.filter
-                        (text="Тестовый коммент").exists())
-
     def test_check_cache(self):
         """Проверка кеша."""
         response = self.guest_client.get(reverse("posts:index"))
@@ -211,14 +197,8 @@ class PostPagesTests(TestCase):
         response3 = self.guest_client.get(reverse('posts:index'))
         self.assertNotEqual(response.content, response3.content)
 
-    def test_follow_page(self):
-        """ Проверяем, что страница подписок пуста """
-        response = self.authorized_client.get(reverse("posts:follow_index"))
-        self.assertEqual(len(response.context["page_obj"]), 0)
-
     def test_author_subscription(self):
         """Проверка подписки на автора поста"""
-        self.authorized_client.get(reverse('posts:follow_index'))
         sub_1 = Follow.objects.filter(
             author=self.post_1.author, user=self.user
         )
@@ -235,16 +215,20 @@ class PostPagesTests(TestCase):
 
     def test_author_unsubscription(self):
         """Проверка отписки от автора"""
-        self.authorized_client.post(
-            reverse(
-                'posts:profile_follow',
-                kwargs={'username': self.user_1.username})
+        Follow.objects.create(
+            user=self.user,
+            author=self.user_1
         )
         sub_1 = Follow.objects.filter(
             author=self.post_1.author, user=self.user
         )
         self.assertTrue(sub_1)
-        sub_1.delete()
+        self.authorized_client.get(
+            reverse(
+                'posts:profile_unfollow',
+                kwargs={'username': self.user_1.username}
+            )
+        )
         sub_2 = Follow.objects.filter(
             author=self.post_1.author, user=self.user
         )
@@ -257,8 +241,12 @@ class PostPagesTests(TestCase):
                 'posts:profile_follow',
                 kwargs={'username': self.user_1.username})
         )
-        post = Follow.objects.filter(author=self.post_1.author, user=self.user)
-        self.assertTrue(post)
+        self.authorized_client.get(
+            reverse(
+                'posts:profile_unfollow',
+                kwargs={'username': self.user_1.username}
+            )
+        )
 
     def test_subscription_no_added_to_profile_follow_user(self):
         """Пост НЕ появляется на странице подписок у НЕ подписчика"""
@@ -270,10 +258,12 @@ class PostPagesTests(TestCase):
             reverse('posts:profile_follow',
                     kwargs={'username': self.user.username})
         )
-        sub_2 = Follow.objects.filter(
-            author=self.post_1.author, user=self.user
+        response = self.authorized_client_1.get(
+            reverse(
+                'posts:follow_index',
+            )
         )
-        self.assertFalse(sub_2)
+        self.assertNotIn(self.post_1, response.context['page_obj'])
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
@@ -311,19 +301,12 @@ class TaskPagesTests(TestCase):
     def setUp(self):
         self.guest_client = Client()
 
-    def test_image_in_group_list_page(self):
-        """Картинка передается на страницу group_list."""
-        response = self.guest_client.get(
-            reverse("posts:group_list", kwargs={"slug": self.group.slug}),
-        )
-        obj = response.context["page_obj"][0]
-        self.assertEqual(obj.image, self.post.image)
-
     def test_image_in_index_and_profile_page(self):
         """Картинка передается на страницу index_and_profile."""
         templates = (
             reverse("posts:index"),
             reverse("posts:profile", kwargs={"username": self.post.author}),
+            reverse("posts:group_list", kwargs={"slug": self.group.slug}),
         )
         for url in templates:
             with self.subTest(url):

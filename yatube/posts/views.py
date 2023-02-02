@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 # from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
+
 from posts.utils import get_page_paginator
 
 from .forms import CommentForm, PostForm
@@ -28,11 +29,10 @@ def group_posts(request, slug):
 def profile(request, username):
     author = get_object_or_404(User, username=username)
     author_posts = author.posts.all()
-    following = author.following.exists()
     context = {
         'author': author,
         'page_obj': get_page_paginator(request, author_posts),
-        'following': following,
+        'following': author.following.exists(),
     }
     return render(request, 'posts/profile.html', context)
 
@@ -51,7 +51,10 @@ def post_detail(request, post_id):
 
 @login_required
 def post_create(request):
-    form = PostForm(request.POST or None)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None
+    )
     if form.is_valid():
         post = form.save(commit=False)
         post.author = request.user
@@ -66,7 +69,11 @@ def post_edit(request, post_id):
     if request.user != post.author:
         return redirect('posts:post_detail', post_id=post.id)
 
-    form = PostForm(request.POST or None, instance=post)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+        instance=post
+    )
     if form.is_valid():
         form.save()
         return redirect('posts:post_detail', post_id=post.id)
@@ -111,5 +118,5 @@ def profile_follow(request, username):
 @login_required
 def profile_unfollow(request, username):
     author = get_object_or_404(User, username=username)
-    Follow.objects.get(user=request.user, author=author).delete()
+    Follow.objects.filter(user=request.user, author=author).delete()
     return redirect("posts:follow_index")

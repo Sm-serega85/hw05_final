@@ -1,7 +1,14 @@
+import shutil
+import tempfile
+
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..models import Group, Post, User
+from ..models import Comment, Group, Post, User
+
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
 class PostFormTests(TestCase):
@@ -14,6 +21,17 @@ class PostFormTests(TestCase):
             slug="test-slug",
             description="Тестовое описание",
         )
+        cls.uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=(
+                b'\x47\x49\x46\x38\x39\x61\x01\x00'
+                b'\x01\x00\x00\x00\x00\x21\xf9\x04'
+                b'\x01\x0a\x00\x01\x00\x2c\x00\x00'
+                b'\x00\x00\x01\x00\x01\x00\x00\x02'
+                b'\x02\x4c\x01\x00\x3b'
+            ),
+            content_type='image/gif'
+        )
         cls.group2 = Group.objects.create(
             title="Тестовая группа 2",
             slug="test-slug-2",
@@ -25,6 +43,13 @@ class PostFormTests(TestCase):
             group=cls.group
         )
 
+        @classmethod
+        def tearDownClass(cls):
+            super().tearDownClass()
+            shutil.rmtree(
+                TEMP_MEDIA_ROOT, ignore_errors=True
+            )
+
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
@@ -35,7 +60,8 @@ class PostFormTests(TestCase):
         posts_count = Post.objects.count()
         form_data = {
             "text": "Тестовый текст",
-            "group": self.group.id
+            "group": self.group.id,
+            'image': self.uploaded,
         }
         self.authorized_client.post(
             reverse("posts:post_create"), data=form_data, follow=True
@@ -67,3 +93,20 @@ class PostFormTests(TestCase):
         self.assertEqual(edited.text, form_data["text"])
         self.assertEqual(edited.group, self.group2)
         self.assertEqual(edited.author, self.user)
+
+    def test_comment_correct_context(self):
+        """Валидная форма Комментария создает запись в Post."""
+        comments_count = Comment.objects.count()
+        form_data = {"text": "Тестовый коммент"}
+        response = self.authorized_client.post(
+            reverse("posts:add_comment", kwargs={"post_id": self.post.id}),
+            data=form_data,
+            follow=True,
+        )
+        self.assertRedirects(
+            response, reverse("posts:post_detail",
+                              kwargs={"post_id": self.post.id})
+        )
+        self.assertEqual(Comment.objects.count(), comments_count + 1)
+        self.assertTrue(Comment.objects.filter
+                        (text="Тестовый коммент").exists())
