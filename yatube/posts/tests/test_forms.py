@@ -78,7 +78,7 @@ class PostFormTests(TestCase):
     def test_post_edit(self):
         """Валидная форма изменяет запись в Post."""
         posts_count = Post.objects.count()
-        uploaded = SimpleUploadedFile(
+        uploaded_1 = SimpleUploadedFile(
             name='small_1.gif',
             content=(
                 b"\x47\x49\x46\x38\x39\x61\x02\x00"
@@ -93,7 +93,7 @@ class PostFormTests(TestCase):
         form_data = {
             "text": "Изменяем текст",
             "group": self.group2.id,
-            "image": uploaded,
+            "image": uploaded_1,
         }
         self.authorized_client.post(
             reverse("posts:post_edit", args=({self.post.id})),
@@ -107,7 +107,7 @@ class PostFormTests(TestCase):
         self.assertEqual(edited.text, form_data["text"])
         self.assertEqual(edited.group, self.group2)
         self.assertEqual(edited.author, self.user)
-        self.assertEqual(edited.image, 'posts/small_1.gif')
+        self.assertEqual(edited.image, f'posts/{uploaded_1.name}')
 
     def test_comment_correct_context(self):
         """Валидная форма Комментария создает запись в Post."""
